@@ -1,10 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../generated/prisma"
 }
 
@@ -12,21 +7,78 @@ datasource db {
   provider = "postgresql"
 }
 
-
+// 1. User Model
 model User {
-  id              String   @id   @default(uuid())
-  username        String   @unique
-  password        String
-}
-
-model Order {
-  id            String    @id    @default(uuid())
-  name          String
-  symbol        String    @unique
-}
-
-model Fill {
+  id       String  @id @default(uuid())
+  username String  @unique
+  password String                     
+  orders   Order[]
+  fills    Fill[]
+  balances  Balance[]
   
+  @@map("users")
 }
 
-model Stock {}
+// 2. Stock Model
+model Stock {
+  id     String @id @default(uuid())
+  name   String
+  symbol String @unique
+  
+  @@map("stocks")
+}
+
+// 3. Order Model
+model Order {
+  id        String   @id @default(uuid())
+  userId    String
+  market    String   
+  price     Float
+  qty       Float
+  type      String   // limit or market
+  side      String   // buy or sell
+  filledQty Float    @default(0)
+  status    String   // "open", "filled", "cancelled"
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+  fills     Fill[]
+  
+  @@index([userId])
+  @@index([market])
+  @@index([status])
+  @@map("order")
+}
+
+// 4. Fill Model
+model Fill {
+  id              String   @id @default(uuid())
+  qty             Float
+  side            String
+  type            String   // "maker" or "taker"
+  userId          String
+  price           Float
+  asset           String
+  originalOrderId String
+  createdAt       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id])
+  order           Order    @relation(fields: [originalOrderId], references: [id])
+  
+  @@index([userId])
+  @@index([originalOrderId])
+  @@map("fills")
+}
+
+model Balance{
+  id    String @id @default(uuid())
+  userId  String
+  asset String
+  available   Float @default(0)
+  locked      Float @default(0)
+
+  user User @relation(fields : [userId],references:[id])
+
+  @@unique([userId,asset])
+  @@map("balances")
+}
